@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Tri automatique des déchets
+    </title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+
+            margin: 0;
+
+            font-family:
+                Arial,
+                Helvetica,
+                sans-serif;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    #f4f7f9,
+                    #e8f5e9
+                );
+
+            min-height: 100vh;
+
+            display: flex;
+
+            justify-content: center;
+
+            align-items: center;
+
+            color: #1f2937;
+        }
+
+
+        .container {
+
+            width: 90%;
+
+            max-width: 1000px;
+
+            background: white;
+
+            border-radius: 20px;
+
+            padding: 35px;
+
+            box-shadow:
+                0 10px 35px
+                rgba(0, 0, 0, 0.12);
+        }
+
+
+        h1 {
+
+            text-align: center;
+
+            margin-top: 0;
+
+            color: #166534;
+
+            font-size: 32px;
+        }
+
+
+        .subtitle {
+
+            text-align: center;
+
+            color: #6b7280;
+
+            margin-bottom: 30px;
+        }
+
+
+        .camera-zone {
+
+            display: flex;
+
+            justify-content: center;
+
+            background: #111827;
+
+            border-radius: 15px;
+
+            overflow: hidden;
+
+            min-height: 400px;
+        }
+
+
+        video {
+
+            width: 100%;
+
+            max-height: 500px;
+
+            object-fit: cover;
+        }
+
+
+        .buttons {
+
+            display: flex;
+
+            justify-content: center;
+
+            gap: 15px;
+
+            margin-top: 25px;
+        }
+
+
+        button {
+
+            border: none;
+
+            padding: 14px 25px;
+
+            border-radius: 10px;
+
+            font-size: 16px;
+
+            cursor: pointer;
+
+            font-weight: bold;
+        }
+
+
+        #startButton {
+
+            background: #166534;
+
+            color: white;
+        }
+
+
+        #predictButton {
+
+            background: #2563eb;
+
+            color: white;
+        }
+
+
+        button:hover {
+
+            opacity: 0.85;
+        }
+
+
+        .result {
+
+            margin-top: 30px;
+
+            padding: 25px;
+
+            border-radius: 15px;
+
+            background: #f3f4f6;
+
+            text-align: center;
+
+            display: none;
+        }
+
+
+        .result h2 {
+
+            margin-top: 0;
+
+            color: #166534;
+        }
+
+
+        .classe {
+
+            font-size: 30px;
+
+            font-weight: bold;
+
+            margin: 15px 0;
+        }
+
+
+        .confiance {
+
+            font-size: 20px;
+
+            color: #2563eb;
+
+            margin-bottom: 15px;
+        }
+
+
+        .poubelle {
+
+            font-size: 18px;
+
+            font-weight: bold;
+        }
+
+
+        .message {
+
+            text-align: center;
+
+            margin-top: 20px;
+
+            color: #dc2626;
+        }
+
+
+        canvas {
+
+            display: none;
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+<div class="container">
+
+    <h1>
+        ♻️ Tri automatique des déchets
+    </h1>
+
+    <p class="subtitle">
+        Classification d'images par CNN — MobileNetV2
+    </p>
+
+
+    <div class="camera-zone">
+
+        <video
+            id="video"
+            autoplay
+            playsinline
+        ></video>
+
+    </div>
+
+
+    <canvas id="canvas"></canvas>
+
+
+    <div class="buttons">
+
+        <button id="startButton">
+            📷 Activer la webcam
+        </button>
+
+        <button id="predictButton">
+            🔍 Analyser le déchet
+        </button>
+
+    </div>
+
+
+    <div
+        id="message"
+        class="message"
+    ></div>
+
+
+    <div
+        id="result"
+        class="result"
+    >
+
+        <h2>
+            Résultat de la classification
+        </h2>
+
+        <div
+            id="classe"
+            class="classe"
+        >
+        </div>
+
+        <div
+            id="confiance"
+            class="confiance"
+        >
+        </div>
+
+        <div
+            id="poubelle"
+            class="poubelle"
+        >
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+const video =
+    document.getElementById("video");
+
+const canvas =
+    document.getElementById("canvas");
+
+const startButton =
+    document.getElementById("startButton");
+
+const predictButton =
+    document.getElementById("predictButton");
+
+const result =
+    document.getElementById("result");
+
+const classe =
+    document.getElementById("classe");
+
+const confiance =
+    document.getElementById("confiance");
+
+const poubelle =
+    document.getElementById("poubelle");
+
+const message =
+    document.getElementById("message");
+
+
+let stream = null;
+
+
+// ======================================================
+// Activer la webcam
+// ======================================================
+
+startButton.addEventListener(
+    "click",
+    async function() {
+
+        try {
+
+            stream =
+                await navigator.mediaDevices
+                    .getUserMedia({
+                        video: true
+                    });
+
+            video.srcObject = stream;
+
+            message.textContent =
+                "Webcam activée. Présentez un déchet devant la caméra.";
+
+        }
+
+        catch (error) {
+
+            console.error(error);
+
+            message.textContent =
+                "Impossible d'accéder à la webcam.";
+
+        }
+
+    }
+);
+
+
+// ======================================================
+// Analyse
+// ======================================================
+
+predictButton.addEventListener(
+    "click",
+    async function() {
+
+        if (!stream) {
+
+            message.textContent =
+                "Veuillez d'abord activer la webcam.";
+
+            return;
+        }
+
+
+        message.textContent =
+            "Analyse en cours...";
+
+
+        // ------------------------------------------------
+        // Capturer l'image de la webcam
+        // ------------------------------------------------
+
+        canvas.width =
+            video.videoWidth;
+
+        canvas.height =
+            video.videoHeight;
+
+
+        const context =
+            canvas.getContext("2d");
+
+
+        context.drawImage(
+            video,
+            0,
+            0,
+            canvas.width,
+            canvas.height
+        );
+
+
+        // ------------------------------------------------
+        // Transformer l'image en fichier JPEG
+        // ------------------------------------------------
+
+        const blob =
+            await new Promise(
+                resolve =>
+                    canvas.toBlob(
+                        resolve,
+                        "image/jpeg"
+                    )
+            );
+
+
+        const formData =
+            new FormData();
+
+
+        formData.append(
+            "image",
+            blob,
+            "webcam.jpg"
+        );
+
+
+        // ------------------------------------------------
+        // Envoyer l'image à Flask
+        // ------------------------------------------------
+
+        try {
+
+            const response =
+                await fetch(
+                    "/predict",
+                    {
+                        method: "POST",
+                        body: formData
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (!data.success) {
+
+                message.textContent =
+                    data.message;
+
+                return;
+            }
+
+
+            // ------------------------------------------------
+            // Afficher le résultat
+            // ------------------------------------------------
+
+            result.style.display =
+                "block";
+
+
+            classe.textContent =
+                data.classe.toUpperCase();
+
+
+            confiance.textContent =
+                "Confiance : "
+                + data.confiance
+                + " %";
+
+
+            poubelle.textContent =
+                data.poubelle;
+
+
+            if (data.certain) {
+
+                message.textContent =
+                    "Déchet identifié avec suffisamment de confiance.";
+
+            }
+
+            else {
+
+                // message.textContent =
+                //     "⚠️ La prédiction est incertaine.";
+                classe.textContent =
+                    "PAS UN DÉCHET RECONNU";
+
+                confiance.textContent =
+                    "Confiance insuffisante";
+
+                poubelle.textContent =
+                    "⚠️ Veuillez présenter un déchet appartenant aux catégories reconnues.";
+
+                message.textContent =
+                    "❌ Cet objet ne semble pas être un déchet reconnu.";
+
+            }
+
+        }
+
+        catch (error) {
+
+            console.error(error);
+
+            message.textContent =
+                "Erreur lors de la communication avec le serveur.";
+
+        }
+
+    }
+);
+
+</script>
+
+</body>
+
+</html>

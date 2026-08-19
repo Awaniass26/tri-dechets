@@ -369,45 +369,62 @@ startButton.addEventListener(
                 return;
             }
 
-            console.log("Demande d'accès à la webcam...");
+            console.log(
+                "Demande d'accès à la webcam..."
+            );
 
+
+            // ------------------------------------------------
             // Demander l'accès à la caméra
+            // ------------------------------------------------
+
             stream =
                 await navigator.mediaDevices.getUserMedia({
 
-                    video: {
-                        width: {
-                            ideal: 1280
-                        },
-
-                        height: {
-                            ideal: 720
-                        }
-                    },
+                    video: true,
 
                     audio: false
 
                 });
 
-            console.log("Webcam obtenue :", stream);
 
+            console.log(
+                "Webcam obtenue :",
+                stream
+            );
+
+
+            // ------------------------------------------------
             // Connecter la webcam à la vidéo
-            video.srcObject = stream;
+            // ------------------------------------------------
 
-            // Important
-            video.autoplay = true;
-            video.playsInline = true;
+            video.srcObject =
+                stream;
+
+            video.autoplay =
+                true;
+
+            video.playsInline =
+                true;
+
 
             await video.play();
 
+
+            // ------------------------------------------------
             // Message utilisateur
+            // ------------------------------------------------
+
             message.textContent =
                 "✅ Webcam activée. Présentez un déchet devant la caméra.";
 
+
             // Activer le bouton d'analyse
-            predictButton.disabled = false;
+            predictButton.disabled =
+                false;
 
         }
+
 
         catch (error) {
 
@@ -416,46 +433,54 @@ startButton.addEventListener(
                 error
             );
 
-            // Permission refusée
-            if (error.name === "NotAllowedError") {
+
+            if (
+                error.name === "NotAllowedError"
+            ) {
 
                 message.textContent =
                     "❌ Accès à la webcam refusé. Vérifiez les permissions du navigateur.";
 
             }
 
-            // Aucune caméra
-            else if (error.name === "NotFoundError") {
+
+            else if (
+                error.name === "NotFoundError"
+            ) {
 
                 message.textContent =
                     "❌ Aucune webcam détectée.";
 
             }
 
-            // Caméra déjà utilisée
-            else if (error.name === "NotReadableError") {
+
+            else if (
+                error.name === "NotReadableError"
+            ) {
 
                 message.textContent =
                     "❌ La webcam est déjà utilisée par une autre application.";
 
             }
 
-            // Problème de sécurité
-            else if (error.name === "SecurityError") {
+
+            else if (
+                error.name === "SecurityError"
+            ) {
 
                 message.textContent =
                     "❌ Le navigateur bloque l'accès à la webcam.";
 
             }
 
-            // Autre problème
+
             else {
 
                 message.textContent =
-                    "❌ Erreur webcam : " +
-                    error.name +
-                    " — " +
-                    error.message;
+                    "❌ Erreur webcam : "
+                    + error.name
+                    + " — "
+                    + error.message;
 
             }
 
@@ -466,24 +491,43 @@ startButton.addEventListener(
 
 
 // ======================================================
-// Analyse
+// Analyse du déchet
 // ======================================================
 
 predictButton.addEventListener(
     "click",
-    async function() {
+    async function () {
+
+
+        // ------------------------------------------------
+        // Vérifier que la webcam est active
+        // ------------------------------------------------
 
         if (!stream) {
 
             message.textContent =
-                "Veuillez d'abord activer la webcam.";
+                "❌ Veuillez d'abord activer la webcam.";
+
+            return;
+        }
+
+
+        // Vérifier que la vidéo est prête
+
+        if (
+            video.videoWidth === 0 ||
+            video.videoHeight === 0
+        ) {
+
+            message.textContent =
+                "❌ La caméra n'est pas encore prête. Veuillez patienter.";
 
             return;
         }
 
 
         message.textContent =
-            "Analyse en cours...";
+            "🔍 Analyse en cours...";
 
 
         // ------------------------------------------------
@@ -519,10 +563,24 @@ predictButton.addEventListener(
                 resolve =>
                     canvas.toBlob(
                         resolve,
-                        "image/jpeg"
+                        "image/jpeg",
+                        0.90
                     )
             );
 
+
+        if (!blob) {
+
+            message.textContent =
+                "❌ Impossible de capturer l'image.";
+
+            return;
+        }
+
+
+        // ------------------------------------------------
+        // Créer le formulaire
+        // ------------------------------------------------
 
         const formData =
             new FormData();
@@ -541,6 +599,12 @@ predictButton.addEventListener(
 
         try {
 
+
+            console.log(
+                "Envoi de l'image au serveur..."
+            );
+
+
             const response =
                 await fetch(
                     "/predict",
@@ -551,30 +615,121 @@ predictButton.addEventListener(
                 );
 
 
-            const data =
-                await response.json();
+            // ------------------------------------------------
+            // Vérifier la réponse HTTP
+            // ------------------------------------------------
+
+            console.log(
+                "Status HTTP :",
+                response.status
+            );
+
+            console.log(
+                "Réponse OK :",
+                response.ok
+            );
 
 
-            if (!data.success) {
+            // ------------------------------------------------
+            // Lire la réponse comme texte
+            // ------------------------------------------------
+
+            const texte =
+                await response.text();
+
+
+            console.log(
+                "Réponse serveur :",
+                texte
+            );
+
+
+            // ------------------------------------------------
+            // Vérifier si la réponse est vide
+            // ------------------------------------------------
+
+            if (!texte || texte.trim() === "") {
 
                 message.textContent =
-                    data.message;
+                    "❌ Le serveur a retourné une réponse vide.";
+
+                console.error(
+                    "Réponse vide du serveur."
+                );
 
                 return;
             }
 
 
             // ------------------------------------------------
-            // Afficher le résultat
+            // Convertir le texte en JSON
+            // ------------------------------------------------
+
+            let data;
+
+
+            try {
+
+                data =
+                    JSON.parse(texte);
+
+            }
+
+            catch (jsonError) {
+
+                console.error(
+                    "Erreur JSON :",
+                    jsonError
+                );
+
+                console.error(
+                    "Réponse reçue :",
+                    texte
+                );
+
+
+                message.textContent =
+                    "❌ Le serveur a retourné une réponse invalide.";
+
+                return;
+            }
+
+
+            // ------------------------------------------------
+            // Vérifier success
+            // ------------------------------------------------
+
+            if (!data.success) {
+
+                message.textContent =
+                    data.message ||
+                    "❌ Une erreur est survenue lors de l'analyse.";
+
+                return;
+            }
+
+
+            // ------------------------------------------------
+            // Afficher le bloc résultat
             // ------------------------------------------------
 
             result.style.display =
                 "block";
 
 
-            classe.textContent =
-                data.classe.toUpperCase();
+            // ------------------------------------------------
+            // Afficher la classe
+            // ------------------------------------------------
 
+            classe.textContent =
+                data.classe
+                    ? data.classe.toUpperCase()
+                    : "INCONNU";
+
+
+            // ------------------------------------------------
+            // Afficher la confiance
+            // ------------------------------------------------
 
             confiance.textContent =
                 "Confiance : "
@@ -582,29 +737,44 @@ predictButton.addEventListener(
                 + " %";
 
 
-            poubelle.textContent =
-                data.poubelle;
+            // ------------------------------------------------
+            // Afficher la poubelle
+            // ------------------------------------------------
 
+            poubelle.textContent =
+                data.poubelle ||
+                "Aucune poubelle recommandée";
+
+
+            // ==================================================
+            // CAS 1 : prédiction suffisamment fiable
+            // ==================================================
 
             if (data.certain) {
 
                 message.textContent =
-                    "Déchet identifié avec suffisamment de confiance.";
+                    "✅ Déchet identifié avec suffisamment de confiance.";
 
             }
 
+
+            // ==================================================
+            // CAS 2 : confiance insuffisante
+            // ==================================================
+
             else {
 
-                // message.textContent =
-                //     "⚠️ La prédiction est incertaine.";
                 classe.textContent =
                     "PAS UN DÉCHET RECONNU";
+
 
                 confiance.textContent =
                     "Confiance insuffisante";
 
+
                 poubelle.textContent =
                     "⚠️ Veuillez présenter un déchet appartenant aux catégories reconnues.";
+
 
                 message.textContent =
                     "❌ Cet objet ne semble pas être un déchet reconnu.";
@@ -613,12 +783,17 @@ predictButton.addEventListener(
 
         }
 
+
         catch (error) {
 
-            console.error(error);
+            console.error(
+                "Erreur lors de la communication avec le serveur :",
+                error
+            );
+
 
             message.textContent =
-                "Erreur lors de la communication avec le serveur.";
+                "❌ Impossible de communiquer avec le serveur.";
 
         }
 

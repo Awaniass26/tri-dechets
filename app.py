@@ -243,6 +243,7 @@ def predire():
 # Lancement
 # ============================================================
 
+print("Lancement de l'application Flask...")
 if __name__ == "__main__":
 
     app.run(

@@ -5,17 +5,13 @@
 
     <meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>
         Tri automatique des déchets
     </title>
 
     <style>
-
         * {
             box-sizing: border-box;
         }
@@ -30,11 +26,9 @@
                 sans-serif;
 
             background:
-                linear-gradient(
-                    135deg,
+                linear-gradient(135deg,
                     #f4f7f9,
-                    #e8f5e9
-                );
+                    #e8f5e9);
 
             min-height: 100vh;
 
@@ -61,8 +55,7 @@
             padding: 35px;
 
             box-shadow:
-                0 10px 35px
-                rgba(0, 0, 0, 0.12);
+                0 10px 35px rgba(0, 0, 0, 0.12);
         }
 
 
@@ -230,7 +223,6 @@
 
             display: none;
         }
-
     </style>
 
 </head>
@@ -238,569 +230,524 @@
 
 <body>
 
-<div class="container">
+    <div class="container">
 
-    <h1>
-        ♻️ Tri automatique des déchets
-    </h1>
+        <h1>
+            ♻️ Tri automatique des déchets
+        </h1>
 
-    <p class="subtitle">
-        Classification d'images par CNN — MobileNetV2
-    </p>
-
-
-    <div class="camera-zone">
-
-        <video
-            id="video"
-            autoplay
-            playsinline
-        ></video>
-
-    </div>
+        <p class="subtitle">
+            Classification d'images par CNN — MobileNetV2
+        </p>
 
 
-    <canvas id="canvas"></canvas>
+        <div class="camera-zone">
 
+            <video id="video" autoplay playsinline></video>
 
-    <div class="buttons">
-
-        <button id="startButton">
-            📷 Activer la webcam
-        </button>
-
-        <button id="predictButton">
-            🔍 Analyser le déchet
-        </button>
-
-    </div>
-
-
-    <div
-        id="message"
-        class="message"
-    ></div>
-
-
-    <div
-        id="result"
-        class="result"
-    >
-
-        <h2>
-            Résultat de la classification
-        </h2>
-
-        <div
-            id="classe"
-            class="classe"
-        >
         </div>
 
-        <div
-            id="confiance"
-            class="confiance"
-        >
+
+        <canvas id="canvas"></canvas>
+
+
+        <div class="buttons">
+
+            <button id="startButton">
+                📷 Activer la webcam
+            </button>
+
+            <button id="predictButton" disabled>
+                🔍 Analyser le déchet
+            </button>
+
         </div>
 
-        <div
-            id="poubelle"
-            class="poubelle"
-        >
+
+        <div id="message" class="message"></div>
+
+
+        <div id="result" class="result">
+
+            <h2>
+                Résultat de la classification
+            </h2>
+
+            <div id="classe" class="classe">
+            </div>
+
+            <div id="confiance" class="confiance">
+            </div>
+
+            <div id="poubelle" class="poubelle">
+            </div>
+
         </div>
 
     </div>
 
-</div>
 
+    <script>
 
-<script>
+        const video =
+            document.getElementById("video");
 
-const video =
-    document.getElementById("video");
+        const canvas =
+            document.getElementById("canvas");
 
-const canvas =
-    document.getElementById("canvas");
+        const startButton =
+            document.getElementById("startButton");
 
-const startButton =
-    document.getElementById("startButton");
+        const predictButton =
+            document.getElementById("predictButton");
 
-const predictButton =
-    document.getElementById("predictButton");
+        const result =
+            document.getElementById("result");
 
-const result =
-    document.getElementById("result");
+        const classe =
+            document.getElementById("classe");
 
-const classe =
-    document.getElementById("classe");
+        const confiance =
+            document.getElementById("confiance");
 
-const confiance =
-    document.getElementById("confiance");
+        const poubelle =
+            document.getElementById("poubelle");
 
-const poubelle =
-    document.getElementById("poubelle");
+        const message =
+            document.getElementById("message");
 
-const message =
-    document.getElementById("message");
 
+        let stream = null;
 
-let stream = null;
 
+        // ======================================================
+        // Activer la webcam
+        // ======================================================
 
-// ======================================================
-// Activer la webcam
-// ======================================================
+        startButton.addEventListener(
+            "click",
+            async function () {
 
-startButton.addEventListener(
-    "click",
-    async function () {
+                try {
 
-        try {
+                    // Vérifier si le navigateur supporte la webcam
+                    if (
+                        !navigator.mediaDevices ||
+                        !navigator.mediaDevices.getUserMedia
+                    ) {
 
-            // Vérifier si le navigateur supporte la webcam
-            if (
-                !navigator.mediaDevices ||
-                !navigator.mediaDevices.getUserMedia
-            ) {
+                        message.textContent =
+                            "❌ Votre navigateur ne permet pas l'accès à la webcam.";
 
-                message.textContent =
-                    "❌ Votre navigateur ne permet pas l'accès à la webcam.";
-
-                return;
-            }
-
-            console.log(
-                "Demande d'accès à la webcam..."
-            );
-
-
-            // ------------------------------------------------
-            // Demander l'accès à la caméra
-            // ------------------------------------------------
-
-            stream =
-                await navigator.mediaDevices.getUserMedia({
-
-                    video: true,
-
-                    audio: false
-
-                });
-
-
-            console.log(
-                "Webcam obtenue :",
-                stream
-            );
-
-
-            // ------------------------------------------------
-            // Connecter la webcam à la vidéo
-            // ------------------------------------------------
-
-            video.srcObject =
-                stream;
-
-            video.autoplay =
-                true;
-
-            video.playsInline =
-                true;
-
-
-            await video.play();
-
-
-            // ------------------------------------------------
-            // Message utilisateur
-            // ------------------------------------------------
-
-            message.textContent =
-                "✅ Webcam activée. Présentez un déchet devant la caméra.";
-
-
-            // Activer le bouton d'analyse
-            predictButton.disabled =
-                false;
-
-        }
-
-
-        catch (error) {
-
-            console.error(
-                "ERREUR WEBCAM :",
-                error
-            );
-
-
-            if (
-                error.name === "NotAllowedError"
-            ) {
-
-                message.textContent =
-                    "❌ Accès à la webcam refusé. Vérifiez les permissions du navigateur.";
-
-            }
-
-
-            else if (
-                error.name === "NotFoundError"
-            ) {
-
-                message.textContent =
-                    "❌ Aucune webcam détectée.";
-
-            }
-
-
-            else if (
-                error.name === "NotReadableError"
-            ) {
-
-                message.textContent =
-                    "❌ La webcam est déjà utilisée par une autre application.";
-
-            }
-
-
-            else if (
-                error.name === "SecurityError"
-            ) {
-
-                message.textContent =
-                    "❌ Le navigateur bloque l'accès à la webcam.";
-
-            }
-
-
-            else {
-
-                message.textContent =
-                    "❌ Erreur webcam : "
-                    + error.name
-                    + " — "
-                    + error.message;
-
-            }
-
-        }
-
-    }
-);
-
-
-// ======================================================
-// Analyse du déchet
-// ======================================================
-
-predictButton.addEventListener(
-    "click",
-    async function () {
-
-
-        // ------------------------------------------------
-        // Vérifier que la webcam est active
-        // ------------------------------------------------
-
-        if (!stream) {
-
-            message.textContent =
-                "❌ Veuillez d'abord activer la webcam.";
-
-            return;
-        }
-
-
-        // Vérifier que la vidéo est prête
-
-        if (
-            video.videoWidth === 0 ||
-            video.videoHeight === 0
-        ) {
-
-            message.textContent =
-                "❌ La caméra n'est pas encore prête. Veuillez patienter.";
-
-            return;
-        }
-
-
-        message.textContent =
-            "🔍 Analyse en cours...";
-
-
-        // ------------------------------------------------
-        // Capturer l'image de la webcam
-        // ------------------------------------------------
-
-        canvas.width =
-            video.videoWidth;
-
-        canvas.height =
-            video.videoHeight;
-
-
-        const context =
-            canvas.getContext("2d");
-
-
-        context.drawImage(
-            video,
-            0,
-            0,
-            canvas.width,
-            canvas.height
-        );
-
-
-        // ------------------------------------------------
-        // Transformer l'image en fichier JPEG
-        // ------------------------------------------------
-
-        const blob =
-            await new Promise(
-                resolve =>
-                    canvas.toBlob(
-                        resolve,
-                        "image/jpeg",
-                        0.90
-                    )
-            );
-
-
-        if (!blob) {
-
-            message.textContent =
-                "❌ Impossible de capturer l'image.";
-
-            return;
-        }
-
-
-        // ------------------------------------------------
-        // Créer le formulaire
-        // ------------------------------------------------
-
-        const formData =
-            new FormData();
-
-
-        formData.append(
-            "image",
-            blob,
-            "webcam.jpg"
-        );
-
-
-        // ------------------------------------------------
-        // Envoyer l'image à Flask
-        // ------------------------------------------------
-
-        try {
-
-
-            console.log(
-                "Envoi de l'image au serveur..."
-            );
-
-
-            const response =
-                await fetch(
-                    "/predict",
-                    {
-                        method: "POST",
-                        body: formData
+                        return;
                     }
+
+                    console.log(
+                        "Demande d'accès à la webcam..."
+                    );
+
+
+                    // ------------------------------------------------
+                    // Demander l'accès à la caméra
+                    // ------------------------------------------------
+
+                    stream =
+                        await navigator.mediaDevices.getUserMedia({
+
+                            video: true,
+
+                            audio: false
+
+                        });
+
+
+                    console.log(
+                        "Webcam obtenue :",
+                        stream
+                    );
+
+
+                    // ------------------------------------------------
+                    // Connecter la webcam à la vidéo
+                    // ------------------------------------------------
+
+                    video.srcObject =
+                        stream;
+
+                    video.autoplay =
+                        true;
+
+                    video.playsInline =
+                        true;
+
+
+                    await video.play();
+
+
+                    // ------------------------------------------------
+                    // Message utilisateur
+                    // ------------------------------------------------
+
+                    message.textContent =
+                        "✅ Webcam activée. Présentez un déchet devant la caméra.";
+
+
+                    // Activer le bouton d'analyse
+                    predictButton.disabled =
+                        false;
+
+                }
+
+
+                catch (error) {
+
+                    console.error(
+                        "ERREUR WEBCAM :",
+                        error
+                    );
+
+
+                    if (
+                        error.name === "NotAllowedError"
+                    ) {
+
+                        message.textContent =
+                            "❌ Accès à la webcam refusé. Vérifiez les permissions du navigateur.";
+
+                    }
+
+
+                    else if (
+                        error.name === "NotFoundError"
+                    ) {
+
+                        message.textContent =
+                            "❌ Aucune webcam détectée.";
+
+                    }
+
+
+                    else if (
+                        error.name === "NotReadableError"
+                    ) {
+
+                        message.textContent =
+                            "❌ La webcam est déjà utilisée par une autre application.";
+
+                    }
+
+
+                    else if (
+                        error.name === "SecurityError"
+                    ) {
+
+                        message.textContent =
+                            "❌ Le navigateur bloque l'accès à la webcam.";
+
+                    }
+
+
+                    else {
+
+                        message.textContent =
+                            "❌ Erreur webcam : "
+                            + error.name
+                            + " — "
+                            + error.message;
+
+                    }
+
+                }
+
+            }
+        );
+
+
+        // ======================================================
+        // Analyse du déchet
+        // ======================================================
+
+        predictButton.addEventListener(
+            "click",
+            async function () {
+
+
+                // ------------------------------------------------
+                // Vérifier que la webcam est active
+                // ------------------------------------------------
+
+                if (!stream) {
+
+                    message.textContent =
+                        "❌ Veuillez d'abord activer la webcam.";
+
+                    return;
+                }
+
+
+                // Vérifier que la vidéo est prête
+
+                if (
+                    video.videoWidth === 0 ||
+                    video.videoHeight === 0
+                ) {
+
+                    message.textContent =
+                        "❌ La caméra n'est pas encore prête. Veuillez patienter.";
+
+                    return;
+                }
+
+
+                message.textContent =
+                    "🔍 Analyse en cours...";
+
+
+                // ------------------------------------------------
+                // Capturer l'image de la webcam
+                // ------------------------------------------------
+
+                canvas.width =
+                    video.videoWidth;
+
+                canvas.height =
+                    video.videoHeight;
+
+
+                const context =
+                    canvas.getContext("2d");
+
+
+                context.drawImage(
+                    video,
+                    0,
+                    0,
+                    canvas.width,
+                    canvas.height
                 );
 
 
-            // ------------------------------------------------
-            // Vérifier la réponse HTTP
-            // ------------------------------------------------
+                // ------------------------------------------------
+                // Transformer l'image en fichier JPEG
+                // ------------------------------------------------
 
-            console.log(
-                "Status HTTP :",
-                response.status
-            );
-
-            console.log(
-                "Réponse OK :",
-                response.ok
-            );
-
-
-            // ------------------------------------------------
-            // Lire la réponse comme texte
-            // ------------------------------------------------
-
-            const texte =
-                await response.text();
+                const blob =
+                    await new Promise(
+                        resolve =>
+                            canvas.toBlob(
+                                resolve,
+                                "image/jpeg",
+                                0.90
+                            )
+                    );
 
 
-            console.log(
-                "Réponse serveur :",
-                texte
-            );
+                if (!blob) {
+
+                    message.textContent =
+                        "❌ Impossible de capturer l'image.";
+
+                    return;
+                }
 
 
-            // ------------------------------------------------
-            // Vérifier si la réponse est vide
-            // ------------------------------------------------
+                // ------------------------------------------------
+                // Créer le formulaire
+                // ------------------------------------------------
 
-            if (!texte || texte.trim() === "") {
-
-                message.textContent =
-                    "❌ Le serveur a retourné une réponse vide.";
-
-                console.error(
-                    "Réponse vide du serveur."
-                );
-
-                return;
-            }
+                const formData =
+                    new FormData();
 
 
-            // ------------------------------------------------
-            // Convertir le texte en JSON
-            // ------------------------------------------------
-
-            let data;
-
-
-            try {
-
-                data =
-                    JSON.parse(texte);
-
-            }
-
-            catch (jsonError) {
-
-                console.error(
-                    "Erreur JSON :",
-                    jsonError
-                );
-
-                console.error(
-                    "Réponse reçue :",
-                    texte
+                formData.append(
+                    "image",
+                    blob,
+                    "webcam.jpg"
                 );
 
 
-                message.textContent =
-                    "❌ Le serveur a retourné une réponse invalide.";
+                // ------------------------------------------------
+                // Envoyer l'image à Flask
+                // ------------------------------------------------
 
-                return;
+                try {
+
+
+                    console.log(
+                        "Envoi de l'image au serveur..."
+                    );
+
+
+                    const response = await fetch(
+                        "/predict",
+                        {
+                            method: "POST",
+                            body: formData
+                        }
+                    );
+
+                    console.log(
+                        "Status HTTP :",
+                        response.status
+                    );
+
+                    const texte = await response.text();
+
+                    console.log(
+                        "Réponse serveur :",
+                        texte
+                    );
+
+                    if (!response.ok) {
+
+                        message.textContent =
+                            "❌ Erreur serveur HTTP " +
+                            response.status;
+
+                        console.error(
+                            "Erreur serveur :",
+                            response.status,
+                            texte
+                        );
+
+                        return;
+                    }
+
+                    if (!texte || texte.trim() === "") {
+
+                        message.textContent =
+                            "❌ Le serveur a retourné une réponse vide.";
+
+                        return;
+                    }
+
+                    let data;
+
+                    try {
+
+                        data = JSON.parse(texte);
+
+                    }
+                    catch (error) {
+
+                        console.error(
+                            "JSON invalide :",
+                            error
+                        );
+
+                        message.textContent =
+                            "❌ Réponse invalide du serveur.";
+
+                        return;
+                    }
+
+
+                    // ------------------------------------------------
+                    // Vérifier success
+                    // ------------------------------------------------
+
+                    if (!data.success) {
+
+                        message.textContent =
+                            data.message ||
+                            "❌ Une erreur est survenue lors de l'analyse.";
+
+                        return;
+                    }
+
+
+                    // ------------------------------------------------
+                    // Afficher le bloc résultat
+                    // ------------------------------------------------
+
+                    result.style.display =
+                        "block";
+
+
+                    // ------------------------------------------------
+                    // Afficher la classe
+                    // ------------------------------------------------
+
+                    classe.textContent =
+                        data.classe
+                            ? data.classe.toUpperCase()
+                            : "INCONNU";
+
+
+                    // ------------------------------------------------
+                    // Afficher la confiance
+                    // ------------------------------------------------
+
+                    confiance.textContent =
+                        "Confiance : "
+                        + data.confiance
+                        + " %";
+
+
+                    // ------------------------------------------------
+                    // Afficher la poubelle
+                    // ------------------------------------------------
+
+                    poubelle.textContent =
+                        data.poubelle ||
+                        "Aucune poubelle recommandée";
+
+
+                    // ==================================================
+                    // CAS 1 : prédiction suffisamment fiable
+                    // ==================================================
+
+                    if (data.certain) {
+
+                        message.textContent =
+                            "✅ Déchet identifié avec suffisamment de confiance.";
+
+                    }
+
+
+                    // ==================================================
+                    // CAS 2 : confiance insuffisante
+                    // ==================================================
+
+                    else {
+
+                        classe.textContent =
+                            "PAS UN DÉCHET RECONNU";
+
+
+                        confiance.textContent =
+                            "Confiance insuffisante";
+
+
+                        poubelle.textContent =
+                            "⚠️ Veuillez présenter un déchet appartenant aux catégories reconnues.";
+
+
+                        message.textContent =
+                            "❌ Cet objet ne semble pas être un déchet reconnu.";
+
+                    }
+
+                }
+
+
+                catch (error) {
+
+                    console.error(
+                        "Erreur lors de la communication avec le serveur :",
+                        error
+                    );
+
+
+                    message.textContent =
+                        "❌ Impossible de communiquer avec le serveur.";
+
+                }
+
             }
+        );
 
-
-            // ------------------------------------------------
-            // Vérifier success
-            // ------------------------------------------------
-
-            if (!data.success) {
-
-                message.textContent =
-                    data.message ||
-                    "❌ Une erreur est survenue lors de l'analyse.";
-
-                return;
-            }
-
-
-            // ------------------------------------------------
-            // Afficher le bloc résultat
-            // ------------------------------------------------
-
-            result.style.display =
-                "block";
-
-
-            // ------------------------------------------------
-            // Afficher la classe
-            // ------------------------------------------------
-
-            classe.textContent =
-                data.classe
-                    ? data.classe.toUpperCase()
-                    : "INCONNU";
-
-
-            // ------------------------------------------------
-            // Afficher la confiance
-            // ------------------------------------------------
-
-            confiance.textContent =
-                "Confiance : "
-                + data.confiance
-                + " %";
-
-
-            // ------------------------------------------------
-            // Afficher la poubelle
-            // ------------------------------------------------
-
-            poubelle.textContent =
-                data.poubelle ||
-                "Aucune poubelle recommandée";
-
-
-            // ==================================================
-            // CAS 1 : prédiction suffisamment fiable
-            // ==================================================
-
-            if (data.certain) {
-
-                message.textContent =
-                    "✅ Déchet identifié avec suffisamment de confiance.";
-
-            }
-
-
-            // ==================================================
-            // CAS 2 : confiance insuffisante
-            // ==================================================
-
-            else {
-
-                classe.textContent =
-                    "PAS UN DÉCHET RECONNU";
-
-
-                confiance.textContent =
-                    "Confiance insuffisante";
-
-
-                poubelle.textContent =
-                    "⚠️ Veuillez présenter un déchet appartenant aux catégories reconnues.";
-
-
-                message.textContent =
-                    "❌ Cet objet ne semble pas être un déchet reconnu.";
-
-            }
-
-        }
-
-
-        catch (error) {
-
-            console.error(
-                "Erreur lors de la communication avec le serveur :",
-                error
-            );
-
-
-            message.textContent =
-                "❌ Impossible de communiquer avec le serveur.";
-
-        }
-
-    }
-);
-
-</script>
+    </script>
 
 </body>
 

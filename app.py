@@ -1,5 +1,4 @@
 import os
-import base64
 
 import cv2
 import numpy as np
@@ -10,7 +9,7 @@ from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 
 
 # ============================================================
-# Configuration
+# CONFIGURATION
 # ============================================================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -28,58 +27,80 @@ CHEMIN_CLASSES = os.path.join(
 )
 
 TAILLE_IMAGE = (224, 224)
-# SEUIL_CONFIANCE = 0.55
+
 SEUIL_CONFIANCE = 0.70
 
 
 # ============================================================
-# Application Flask
+# APPLICATION FLASK
 # ============================================================
 
 app = Flask(__name__)
 
 
 # ============================================================
-# Chargement du modèle
+# CHARGEMENT DU MODELE
 # ============================================================
 
+print("========================================")
 print("Chargement du modèle...")
+print("========================================")
 
-modele = tf.keras.models.load_model(CHEMIN_MODELE)
+modele = tf.keras.models.load_model(
+    CHEMIN_MODELE
+)
 
 print("Modèle chargé avec succès !")
 
 
 # ============================================================
-# Chargement des classes
+# CHARGEMENT DES CLASSES
 # ============================================================
 
-with open(CHEMIN_CLASSES, "r") as fichier:
+with open(
+    CHEMIN_CLASSES,
+    "r",
+    encoding="utf-8"
+) as fichier:
+
     classes = [
         ligne.strip()
         for ligne in fichier
         if ligne.strip()
     ]
 
+
 print("Classes :", classes)
 
 
 # ============================================================
-# Correspondance classe → poubelle
+# CORRESPONDANCE CLASSE -> POUBELLE
 # ============================================================
 
 POUBELLE_RECOMMANDEE = {
-    "cardboard": "Poubelle jaune — recyclable (carton)",
-    "glass": "Poubelle verte — verre",
-    "metal": "Poubelle jaune — recyclable (métal)",
-    "paper": "Poubelle jaune — recyclable (papier)",
-    "plastic": "Poubelle jaune — recyclable (plastique)",
-    "trash": "Poubelle grise — non recyclable",
+
+    "cardboard":
+        "Poubelle jaune — recyclable (carton)",
+
+    "glass":
+        "Poubelle verte — verre",
+
+    "metal":
+        "Poubelle jaune — recyclable (métal)",
+
+    "paper":
+        "Poubelle jaune — recyclable (papier)",
+
+    "plastic":
+        "Poubelle jaune — recyclable (plastique)",
+
+    "trash":
+        "Poubelle grise — non recyclable"
 }
 
 
 # ============================================================
-# Préparation de l'image
+# PREPARATION IMAGE
 # ============================================================
 
 def preparer_image(image_bgr):
@@ -99,85 +120,249 @@ def preparer_image(image_bgr):
         axis=0
     ).astype("float32")
 
-    return preprocess_input(image_array)
+    image_pretraitee = preprocess_input(
+        image_array
+    )
+
+    return image_pretraitee
 
 
 # ============================================================
-# Page principale
+# PAGE PRINCIPALE
 # ============================================================
 
 @app.route("/")
 def accueil():
-    return render_template("index.html")
+
+    return render_template(
+        "index.html"
+    )
 
 
 # ============================================================
-# API de prédiction
+# TEST SERVEUR
 # ============================================================
 
-@app.route("/predict", methods=["POST"])
+@app.route("/health", methods=["GET"])
+def health():
+
+    return jsonify({
+
+        "success": True,
+
+        "message":
+            "Serveur opérationnel",
+
+        "modele_charge":
+            modele is not None,
+
+        "classes":
+            classes
+
+    })
+
+
+# ============================================================
+# PREDICTION
+# ============================================================
+
+@app.route(
+    "/predict",
+    methods=["POST"]
+)
 def predire():
+
+    print("")
+    print("========================================")
+    print("REQUETE /predict RECUE")
+    print("========================================")
 
     try:
 
         # ----------------------------------------------------
-        # Vérifier qu'une image est reçue
+        # Vérifier le fichier
         # ----------------------------------------------------
 
+        print(
+            "Fichiers reçus :",
+            list(request.files.keys())
+        )
+
         if "image" not in request.files:
+
+            print(
+                "ERREUR : aucune image reçue"
+            )
+
             return jsonify({
+
                 "success": False,
-                "message": "Aucune image reçue."
+
+                "message":
+                    "Aucune image reçue."
+
             }), 400
+
 
         fichier = request.files["image"]
 
+
+        print(
+            "Nom du fichier :",
+            fichier.filename
+        )
+
+
         # ----------------------------------------------------
-        # Lire l'image
+        # Lire les bytes
         # ----------------------------------------------------
 
         image_bytes = fichier.read()
 
+
+        print(
+            "Taille image reçue :",
+            len(image_bytes),
+            "bytes"
+        )
+
+
+        if not image_bytes:
+
+            print(
+                "ERREUR : image vide"
+            )
+
+            return jsonify({
+
+                "success": False,
+
+                "message":
+                    "L'image reçue est vide."
+
+            }), 400
+
+
+        # ----------------------------------------------------
+        # Convertir en tableau numpy
+        # ----------------------------------------------------
+
         image_array = np.frombuffer(
             image_bytes,
-            np.uint8
+            dtype=np.uint8
         )
+
+
+        # ----------------------------------------------------
+        # Décoder JPEG
+        # ----------------------------------------------------
 
         image_bgr = cv2.imdecode(
             image_array,
             cv2.IMREAD_COLOR
         )
 
+
         if image_bgr is None:
+
+            print(
+                "ERREUR : impossible de décoder l'image"
+            )
+
             return jsonify({
+
                 "success": False,
-                "message": "Impossible de lire l'image."
+
+                "message":
+                    "Impossible de lire l'image."
+
             }), 400
+
+
+        print(
+            "Image décodée :",
+            image_bgr.shape
+        )
+
 
         # ----------------------------------------------------
         # Prétraitement
         # ----------------------------------------------------
 
-        entree = preparer_image(image_bgr)
+        print(
+            "Prétraitement..."
+        )
+
+        entree = preparer_image(
+            image_bgr
+        )
+
+
+        print(
+            "Entrée modèle :",
+            entree.shape
+        )
+
 
         # ----------------------------------------------------
         # Prédiction
         # ----------------------------------------------------
+
+        print(
+            "Lancement de la prédiction..."
+        )
 
         predictions = modele.predict(
             entree,
             verbose=0
         )[0]
 
+
+        print(
+            "Prédiction terminée."
+        )
+
+        print(
+            "Predictions :",
+            predictions
+        )
+
+
+        # ----------------------------------------------------
+        # Classe
+        # ----------------------------------------------------
+
         index_classe = int(
             np.argmax(predictions)
         )
 
+
+        if index_classe >= len(classes):
+
+            raise ValueError(
+                "L'indice de classe retourné par le modèle "
+                "ne correspond pas au fichier classes.txt."
+            )
+
+
         classe = classes[index_classe]
+
 
         confiance = float(
             predictions[index_classe]
         )
+
+
+        print(
+            "Classe :",
+            classe
+        )
+
+        print(
+            "Confiance :",
+            confiance
+        )
+
 
         # ----------------------------------------------------
         # Seuil de confiance
@@ -187,9 +372,11 @@ def predire():
 
             resultat = classe
 
-            poubelle = POUBELLE_RECOMMANDEE.get(
-                classe,
-                "Poubelle inconnue"
+            poubelle = (
+                POUBELLE_RECOMMANDEE.get(
+                    classe,
+                    "Poubelle inconnue"
+                )
             )
 
             certain = True
@@ -205,11 +392,12 @@ def predire():
 
             certain = False
 
+
         # ----------------------------------------------------
-        # Réponse JSON
+        # Réponse
         # ----------------------------------------------------
 
-        return jsonify({
+        reponse = {
 
             "success": True,
 
@@ -224,30 +412,79 @@ def predire():
 
             "certain": certain
 
-        })
+        }
+
+
+        print(
+            "Réponse envoyée :",
+            reponse
+        )
+
+        print(
+            "========================================"
+        )
+
+
+        return jsonify(reponse)
+
 
     except Exception as erreur:
 
-        print("Erreur :", erreur)
+        print("")
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        print("ERREUR /predict")
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+
+        print(
+            type(erreur).__name__
+        )
+
+        print(
+            str(erreur)
+        )
+
+        print(
+            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        )
+
 
         return jsonify({
 
             "success": False,
 
-            "message": str(erreur)
+            "message":
+                "Erreur pendant la prédiction : "
+                + str(erreur)
 
         }), 500
 
 
 # ============================================================
-# Lancement
+# DEMARRAGE
 # ============================================================
 
-print("Lancement de l'application Flask...")
 if __name__ == "__main__":
 
+    port = int(
+        os.environ.get(
+            "PORT",
+            5000
+        )
+    )
+
+    print(
+        "Lancement de l'application Flask..."
+    )
+
+    print(
+        "Port :",
+        port
+    )
+
     app.run(
-        host="127.0.0.1",
-        port=5000,
-        debug=True
+
+        host="0.0.0.0",
+
+        port=port
+
     )

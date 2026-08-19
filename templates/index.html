@@ -353,29 +353,111 @@ let stream = null;
 
 startButton.addEventListener(
     "click",
-    async function() {
+    async function () {
 
         try {
 
-            stream =
-                await navigator.mediaDevices
-                    .getUserMedia({
-                        video: true
-                    });
+            // Vérifier si le navigateur supporte la webcam
+            if (
+                !navigator.mediaDevices ||
+                !navigator.mediaDevices.getUserMedia
+            ) {
 
+                message.textContent =
+                    "❌ Votre navigateur ne permet pas l'accès à la webcam.";
+
+                return;
+            }
+
+            console.log("Demande d'accès à la webcam...");
+
+            // Demander l'accès à la caméra
+            stream =
+                await navigator.mediaDevices.getUserMedia({
+
+                    video: {
+                        width: {
+                            ideal: 1280
+                        },
+
+                        height: {
+                            ideal: 720
+                        }
+                    },
+
+                    audio: false
+
+                });
+
+            console.log("Webcam obtenue :", stream);
+
+            // Connecter la webcam à la vidéo
             video.srcObject = stream;
 
+            // Important
+            video.autoplay = true;
+            video.playsInline = true;
+
+            await video.play();
+
+            // Message utilisateur
             message.textContent =
-                "Webcam activée. Présentez un déchet devant la caméra.";
+                "✅ Webcam activée. Présentez un déchet devant la caméra.";
+
+            // Activer le bouton d'analyse
+            predictButton.disabled = false;
 
         }
 
         catch (error) {
 
-            console.error(error);
+            console.error(
+                "ERREUR WEBCAM :",
+                error
+            );
 
-            message.textContent =
-                "Impossible d'accéder à la webcam.";
+            // Permission refusée
+            if (error.name === "NotAllowedError") {
+
+                message.textContent =
+                    "❌ Accès à la webcam refusé. Vérifiez les permissions du navigateur.";
+
+            }
+
+            // Aucune caméra
+            else if (error.name === "NotFoundError") {
+
+                message.textContent =
+                    "❌ Aucune webcam détectée.";
+
+            }
+
+            // Caméra déjà utilisée
+            else if (error.name === "NotReadableError") {
+
+                message.textContent =
+                    "❌ La webcam est déjà utilisée par une autre application.";
+
+            }
+
+            // Problème de sécurité
+            else if (error.name === "SecurityError") {
+
+                message.textContent =
+                    "❌ Le navigateur bloque l'accès à la webcam.";
+
+            }
+
+            // Autre problème
+            else {
+
+                message.textContent =
+                    "❌ Erreur webcam : " +
+                    error.name +
+                    " — " +
+                    error.message;
+
+            }
 
         }
 

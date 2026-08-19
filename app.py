@@ -178,96 +178,69 @@ def test_post():
 # PREDICTION
 # ============================================================
 
-@app.route(
-    "/predict",
-    methods=["POST"]
-)
+@app.route("/predict", methods=["POST"])
 def predire():
 
     print("")
     print("========================================")
-    print("REQUETE /predict RECUE")
+    print("1 - REQUETE /predict RECUE")
     print("========================================")
 
     try:
 
-        # ----------------------------------------------------
-        # Vérifier le fichier
-        # ----------------------------------------------------
+        # ====================================================
+        # ETAPE 1 : fichier
+        # ====================================================
 
-        print(
-            "Fichiers reçus :",
-            list(request.files.keys())
-        )
+        print("2 - Vérification du fichier...")
 
         if "image" not in request.files:
 
-            print(
-                "ERREUR : aucune image reçue"
-            )
+            print("ERREUR : image absente")
 
             return jsonify({
-
                 "success": False,
-
-                "message":
-                    "Aucune image reçue."
-
+                "message": "Aucune image reçue."
             }), 400
-
 
         fichier = request.files["image"]
 
-
         print(
-            "Nom du fichier :",
+            "3 - Fichier reçu :",
             fichier.filename
         )
 
-
-        # ----------------------------------------------------
-        # Lire les bytes
-        # ----------------------------------------------------
+        # ====================================================
+        # ETAPE 2 : lecture
+        # ====================================================
 
         image_bytes = fichier.read()
 
-
         print(
-            "Taille image reçue :",
+            "4 - Taille image :",
             len(image_bytes),
             "bytes"
         )
 
-
         if not image_bytes:
 
-            print(
-                "ERREUR : image vide"
-            )
+            print("ERREUR : image vide")
 
             return jsonify({
-
                 "success": False,
-
-                "message":
-                    "L'image reçue est vide."
-
+                "message": "Image vide."
             }), 400
 
+        # ====================================================
+        # ETAPE 3 : OpenCV
+        # ====================================================
 
-        # ----------------------------------------------------
-        # Convertir en tableau numpy
-        # ----------------------------------------------------
+        print("5 - Décodage OpenCV...")
 
         image_array = np.frombuffer(
             image_bytes,
             dtype=np.uint8
         )
-
-
-        # ----------------------------------------------------
-        # Décoder JPEG
-        # ----------------------------------------------------
 
         image_bgr = cv2.imdecode(
             image_array,
@@ -277,77 +250,63 @@ def predire():
 
         if image_bgr is None:
 
-            print(
-                "ERREUR : impossible de décoder l'image"
-            )
+            print("ERREUR : cv2.imdecode() a échoué")
 
             return jsonify({
-
                 "success": False,
-
-                "message":
-                    "Impossible de lire l'image."
-
+                "message": "Impossible de décoder l'image."
             }), 400
 
-
         print(
-            "Image décodée :",
+            "6 - Image décodée :",
             image_bgr.shape
         )
 
+        # ====================================================
+        # ETAPE 4 : préparation
+        # ====================================================
 
-        # ----------------------------------------------------
-        # Prétraitement
-        # ----------------------------------------------------
-
-        print(
-            "Prétraitement..."
-        )
+        print("7 - Préparation de l'image...")
 
         entree = preparer_image(
             image_bgr
         )
 
-
         print(
-            "Entrée modèle :",
-            entree.shape
+            "8 - Image préparée :",
+            entree.shape,
+            entree.dtype
         )
 
+        # ====================================================
+        # ETAPE 5 : modèle
+        # ====================================================
 
-        # ----------------------------------------------------
-        # Prédiction
-        # ----------------------------------------------------
-
-        print(
-            "Lancement de la prédiction..."
-        )
+        print("9 - AVANT modele.predict()")
+        print("========================================")
 
         predictions = modele.predict(
             entree,
             verbose=0
-        )[0]
-
-
-        print(
-            "Prédiction terminée."
         )
+
+        print("========================================")
+        print("10 - APRES modele.predict()")
 
         print(
             "Predictions :",
             predictions
         )
 
+        # ====================================================
+        # ETAPE 6 : résultat
+        # ====================================================
 
-        # ----------------------------------------------------
-        # Classe
-        # ----------------------------------------------------
+        predictions = predictions[0]
 
         index_classe = int(
             np.argmax(predictions)
         )
-
 
         if index_classe >= len(classes):
 
@@ -366,19 +325,18 @@ def predire():
 
 
         print(
-            "Classe :",
+            "11 - Classe :",
             classe
         )
 
         print(
-            "Confiance :",
+            "12 - Confiance :",
             confiance
         )
 
-
-        # ----------------------------------------------------
-        # Seuil de confiance
-        # ----------------------------------------------------
+        # ====================================================
+        # ETAPE 7 : poubelle
+        # ====================================================
 
         if confiance >= SEUIL_CONFIANCE:
 
@@ -405,9 +363,9 @@ def predire():
             certain = False
 
 
-        # ----------------------------------------------------
-        # Réponse
-        # ----------------------------------------------------
+        # ====================================================
+        # ETAPE 8 : réponse
+        # ====================================================
 
         reponse = {
 
@@ -428,7 +386,7 @@ def predire():
 
 
         print(
-            "Réponse envoyée :",
+            "13 - Réponse finale :",
             reponse
         )
 
@@ -444,30 +402,14 @@ def predire():
 
         print("")
         print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        print("ERREUR /predict")
+        print("ERREUR PYTHON DANS /predict")
+        print("Type :", type(erreur).__name__)
+        print("Message :", str(erreur))
         print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
-        print(
-            type(erreur).__name__
-        )
-
-        print(
-            str(erreur)
-        )
-
-        print(
-            "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-        )
-
-
         return jsonify({
-
             "success": False,
-
-            "message":
-                "Erreur pendant la prédiction : "
-                + str(erreur)
-
+            "message": str(erreur)
         }), 500
 
 

@@ -162,6 +162,18 @@ def health():
     })
 
 
+@app.route("/test-post", methods=["POST"])
+def test_post():
+
+    print("========================================")
+    print("TEST POST RECU")
+    print("========================================")
+
+    return jsonify({
+        "success": True,
+        "message": "POST fonctionne correctement"
+    })
+
 # ============================================================
 # PREDICTION
 # ============================================================

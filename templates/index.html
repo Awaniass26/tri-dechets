@@ -261,6 +261,10 @@
                 🔍 Analyser le déchet
             </button>
 
+            <button onclick="testerServeur()">
+    🧪 Tester le serveur
+</button>
+
         </div>
 
 
@@ -746,6 +750,45 @@
 
             }
         );
+
+
+        async function testerServeur() {
+
+    console.log("Test POST...");
+
+    try {
+
+        const response = await fetch(
+            "/test-post",
+            {
+                method: "POST"
+            }
+        );
+
+        console.log(
+            "Status :",
+            response.status
+        );
+
+        const texte =
+            await response.text();
+
+        console.log(
+            "Réponse :",
+            texte
+        );
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Erreur :",
+            error
+        );
+
+    }
+}
 
     </script>
 
